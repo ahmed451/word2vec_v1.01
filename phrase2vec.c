@@ -26,7 +26,6 @@ const int vocab_hash_size = 500000000;  // Maximum 500M entries in the vocabular
 
 const long long max_size = 250;         // max vector size
 const long long max_line_size = 3000;   // max length of strings
-const long long N = 100;                // number of closest words that will be shown
 const long long max_nlines = 5000000;   // Maximum 5M lines in the reference text
 const long long max_w = 80;   
 
@@ -44,6 +43,7 @@ int binary = 0;
 long long vocab_max_size = 10000, vocab_size = 0;
 long long train_words = 0;
 real threshold = 100;
+int N = 1;                // number of closest words that will be shown
 
 unsigned long long next_random = 1;
 
@@ -136,7 +136,7 @@ int EvalModule() {
   while (!feof(fin)) {
       ReadLine(line, fin);
       if(strlen(line)>=max_line_size) {
-          printf("WARNING: line %d reached max_line_size!\n",nlines);
+          printf("WARNING: line %lld reached max_line_size!\n",nlines);
       }
       //printf("Retrieved line %s", line);
       strcpy(st1, line);
@@ -192,7 +192,7 @@ if (ftst == NULL) {
       ReadLine(line, ftst);
 
       if(strlen(line)>=max_line_size) {
-          printf("WARNING: line %d reached max_line_size!\n",nlines);
+          printf("WARNING: line %lld reached max_line_size!\n",nlines);
       }
        //printf("Retrieved line %s", line);
   strcpy(strphrase, line);
@@ -253,7 +253,7 @@ if (ftst == NULL) {
           }
         }
   // AA. Stop at the first 
-  for (a = 0; a < 1; a++) printf("%lld\t%lld\t %f\n", nlines,besti[a], bestd[a]);
+  for (a = 0; a < N; a++) printf("%lld\t%lld\t %f\n", nlines,besti[a], bestd[a]);
 
   }
 
@@ -283,19 +283,23 @@ void usage(char * prg) {
     printf("\t\tUse text from <file> as a reference to compare against\n");
     printf("\t-test <file>\n");
     printf("\t\tUse lines in <file> to evaluate againt ref based on word vectors\n");
+    printf("\t-n num\n");
+    printf("\t\tNumber of top similar sentences\n");
     printf("\nExamples:\n");
     printf("%s -wvec vectors.bin -ref phrases.txt -test text.txt\n\n", prg);
 }
 
 int main(int argc, char **argv) {
   int i;
-  if (argc == 1 || argc > 7 ) {
+  if (argc == 1 || argc > 9 ) {
     usage(argv[0]);
    return 0;
   }
   if ((i = ArgPos((char *)"-ref", argc, argv)) > 0) strcpy(ref_file, argv[i + 1]);
   if ((i = ArgPos((char *)"-wvec", argc, argv)) > 0) strcpy(vec_file, argv[i + 1]);
   if ((i = ArgPos((char *)"-test", argc, argv)) > 0) strcpy(test_file, argv[i + 1]);
+  if ((i = ArgPos((char *)"-n", argc, argv)) > 0) N = atoi(argv[i + 1]);
+  if(N>100) N=100;
   if(EvalModule()<0)
       printf("\n----------------\n");
       usage(argv[0]);
