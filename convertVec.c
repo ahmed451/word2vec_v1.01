@@ -52,32 +52,11 @@ long long train_words = 0, word_count_actual = 0, file_size = 0, classes = 0;
 real alpha = 0.025, starting_alpha, sample = 0;
 real *syn0, *syn1, *syn1neg, *expTable;
 
+int debug = 0;
+
 int hs = 1, negative = 0;
 const int table_size = 1e8;
 int *table;
-
-// Reads a single word from a file, assuming space + tab + EOL to be word boundaries
-void ReadWord(char *word, FILE *fin) {
-  int a = 0, ch;
-  while (!feof(fin)) {
-    ch = fgetc(fin);
-    if (ch == 13) continue;
-    if ((ch == ' ') || (ch == '\t') || (ch == '\n')) {
-      if (a > 0) {
-        //if (ch == '\n') ungetc(ch, fin);
-        break;
-      }
-      if (ch == '\n') {
-        //strcpy(word, (char *)"</s>");
-        return;
-      } else continue;
-    }
-    word[a] = ch;
-    a++;
-    if (a >= MAX_STRING - 1) a--;   // Truncate too long words
-  }
-  word[a] = 0;
-}
 
 int ConvBinary2Text() {
   FILE *fin, *fout;
@@ -86,7 +65,6 @@ int ConvBinary2Text() {
   char ch;
   float len;
   long long words, size, a, b;
-  char w[MAX_STRING];
 
   fin = fopen(input_file, "rb");
   if (fin == NULL) {
@@ -99,63 +77,77 @@ int ConvBinary2Text() {
     return -1;
   } 
   if(!strcmp(format, "b2t")) {
-  fscanf(fin, "%lld", &words);
-  fscanf(fin, "%lld", &size);
-  fprintf(fout, "%lld %lld\n", words, size);
-
-  //printf("%lld %lld\n", words, size);
+    fscanf(fin, "%lld", &words);
+    fscanf(fin, "%lld", &size);
+    fprintf(fout, "%lld %lld\n", words, size);
+    if(debug)
+     printf("%lld %lld\n", words, size);
   
-  vocab = (char *)malloc(words * max_w * sizeof(char));
-  M = (float *)malloc(words * size * sizeof(float));
-  if (M == NULL) {
-    printf("Cannot allocate memory: %lld MB\n", words * size * sizeof(float) / 1048576);
-    return -1;
-  }
-  //printf("Starting using output file %s\n", output_file);
-  for (b = 0; b < words; b++) {
-    fscanf(fin, "%s%c", &vocab[b * max_w], &ch);
-  
-    //printf("Read : %s\n",&vocab[b * max_w]);
-    for (a = 0; a < max_w; a++) vocab[b * max_w + a] = toupper(vocab[b * max_w + a]);
-    fprintf(fout, "%s ", &vocab[b * max_w]);
-    for (a = 0; a < size; a++) {
+    vocab = (char *)malloc(words * max_w * sizeof(char));
+    M = (float *)malloc(words * size * sizeof(float));
+    if (M == NULL) {
+      printf("Cannot allocate memory: %lld MB\n", words * size * sizeof(float) / 1048576);
+      return -1;
+    }
+    if(debug)
+      printf("Starting using output file %s\n", output_file);
+    for (b = 0; b < words; b++) {
+      fscanf(fin, "%s%c", &vocab[b * max_w], &ch);
+      if(debug)
+        printf("Read : %s\n",&vocab[b * max_w]);
+      for (a = 0; a < max_w; a++) vocab[b * max_w + a] = tolower(vocab[b * max_w + a]);
+      fprintf(fout, "%s ", &vocab[b * max_w]);
+      for (a = 0; a < size; a++) {
         fread(&M[a + b * size], sizeof(float), 1, fin);
         fprintf(fout, "%lf ", M[a + b * size]);
-    }
-    fprintf(fout, "\n");
-    len = 0;
-    for (a = 0; a < size; a++) len += M[a + b * size] * M[a + b * size];
-    len = sqrt(len);
-    for (a = 0; a < size; a++) M[a + b * size] /= len;
-  }
-} else
-if(!strcmp(format, "t2b")) {
-
-  ReadWord(w, fin);
-  words = atoi(w);
-  ReadWord(w, fin);
-  size = atoi(w);
-  //printf("%lld %lld\n", words, size);
-  fprintf(fout,"%lld %lld\n", words, size);
-  for (b = 0; b < words; b++) {
-      ReadWord(w, fin);
-      //printf("%s :", w);
-      fprintf(fout, "%s ", w);
-      for (a = 0; a < size; a++) {
-        ReadWord(w, fin);
-        //printf("%s ", w);
-        real syn =  atof(w);
-        fwrite(&syn, sizeof(real), 1, fout);
-        //fprintf(fout, "%lf ", atof(w));
       }
-      //printf("\n");
-      ReadWord(w, fin);
       fprintf(fout, "\n");
-  }
-} else {
+      len = 0;
+      for (a = 0; a < size; a++) len += M[a + b * size] * M[a + b * size];
+      len = sqrt(len);
+      for (a = 0; a < size; a++) M[a + b * size] /= len;
+    }
+  } else
+  if(!strcmp(format, "t2b")) {
+    fscanf(fin, "%lld", &words);
+    fscanf(fin, "%lld", &size);
+    fprintf(fout, "%lld %lld\n", words, size);
+    if(debug)
+    printf("%lld %lld\n", words, size);
+
+    vocab = (char *)malloc(words * max_w * sizeof(char));
+    M = (float *)malloc(words * size * sizeof(float));
+    if (M == NULL) {
+      printf("Cannot allocate memory: %lld MB\n", words * size * sizeof(float) / 1048576);
+      return -1;
+    }
+    if(debug)
+      printf("Starting using output file %s\n", output_file);
+    for (b = 0; b < words; b++) {
+      fscanf(fin, "%s%c", &vocab[b * max_w], &ch);
+  
+      if(debug)
+        printf("Read : %s\n",&vocab[b * max_w]);
+      for (a = 0; a < max_w; a++) vocab[b * max_w + a] = tolower(vocab[b * max_w + a]);
+      fprintf(fout, "%s ", &vocab[b * max_w]);
+      for (a = 0; a < size; a++) {
+        fscanf(fin, "%f%c", &M[a + b * size], &ch);
+        //fread(&M[a + b * size], sizeof(float), 1, fin);
+        fwrite(&M[a + b * size], sizeof(float), 1, fout);
+        //fprintf(fout, "%lf ", M[a + b * size]);
+      }
+      fprintf(fout, "\n");
+      len = 0;
+      for (a = 0; a < size; a++) len += M[a + b * size] * M[a + b * size];
+      len = sqrt(len);
+      for (a = 0; a < size; a++) M[a + b * size] /= len;
+    }
+    if(debug)
+      printf("Done!!!\n");
+  } else {
 
   usage();
-}
+  } 
   fclose(fin);
   fclose(fout);
   return 0;
@@ -181,8 +173,10 @@ void usage() {
     printf("\t\tt2b: convert text to binary\n");   
     printf("\t-input inputfile\n");
     printf("\t-output outputfile\n");
+    printf("\t-debug <int>\n");
+    printf("\t\tSet the debug mode 0,1 (default = 0 = more info during convertion)\n");
     printf("\nExamples:\n");
-    printf("./convertVec b2t -intput vec.bin -output vec.txt\n\n");
+    printf("./convertVec -format b2t -intput vec.bin -output vec.txt\n\n");
 }
 int main(int argc, char **argv) {
   int i;
@@ -194,6 +188,7 @@ int main(int argc, char **argv) {
   if ((i = ArgPos((char *)"-format", argc, argv)) > 0) strcpy(format ,argv[i + 1]);
   if ((i = ArgPos((char *)"-input", argc, argv)) > 0) strcpy(input_file, argv[i + 1]);
   if ((i = ArgPos((char *)"-output", argc, argv)) > 0) strcpy(output_file, argv[i + 1]);
+  if ((i = ArgPos((char *)"-debug", argc, argv)) > 0) debug = atoi(argv[i + 1]);
 
  i = ConvBinary2Text();
   return 0;
